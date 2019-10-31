@@ -38,7 +38,6 @@ class stronghold extends Exchange {
                 'fetchCurrencies' => true,
                 'fetchOrderBook' => true,
                 'fetchOpenOrders' => true,
-                'fetchTime' => true,
                 'fetchTrades' => true,
                 'fetchMyTrades' => true,
                 'fetchDepositAddress' => false,
@@ -135,7 +134,7 @@ class stronghold extends Exchange {
         if ($this->options['accountId'] !== null) {
             return $this->options['accountId'];
         }
-        $this->load_accounts();
+        $this->loadAccounts ();
         $numAccounts = is_array ($this->accounts) ? count ($this->accounts) : 0;
         if ($numAccounts > 0) {
             return $this->accounts[0]['id'];
@@ -424,7 +423,7 @@ class stronghold extends Exchange {
         if ($code !== null) {
             $currency = $this->currency ($code);
         }
-        return $this->parse_transactions($response['result'], $currency, $since, $limit);
+        return $this->parseTransactions ($response['result'], $currency, $since, $limit);
     }
 
     public function parse_transaction_status ($status) {

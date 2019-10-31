@@ -43,7 +43,6 @@ module.exports = class oceanex extends Exchange {
                 'createMarketOrder': true,
                 'createOrder': true,
                 'cancelOrder': true,
-                'cancelOrders': true,
                 'cancelAllOrders': true,
             },
             'timeframes': {
@@ -151,7 +150,7 @@ module.exports = class oceanex extends Exchange {
                 },
                 'limits': {
                     'amount': {
-                        'min': undefined,
+                        'min': this.safeValue (market, 'minimum_trading_amount'),
                         'max': undefined,
                     },
                     'price': {
@@ -159,7 +158,7 @@ module.exports = class oceanex extends Exchange {
                         'max': undefined,
                     },
                     'cost': {
-                        'min': this.safeValue (market, 'minimum_trading_amount'),
+                        'min': undefined,
                         'max': undefined,
                     },
                 },
@@ -485,26 +484,16 @@ module.exports = class oceanex extends Exchange {
     }
 
     async fetchOrder (id, symbol = undefined, params = {}) {
-        let ids = id;
-        if (!Array.isArray (id)) {
-            ids = [ id ];
-        }
         await this.loadMarkets ();
         let market = undefined;
         if (symbol !== undefined) {
             market = this.market (symbol);
         }
-        const request = { 'ids': ids };
+        const request = { 'ids': [id] };
         const response = await this.privateGetOrders (this.extend (request, params));
         const data = this.safeValue (response, 'data');
         const dataLength = data.length;
-        if (data === undefined) {
-            throw new OrderNotFound (this.id + ' could not found matching order');
-        }
-        if (Array.isArray (id)) {
-            return this.parseOrders (data, market);
-        }
-        if (dataLength === 0) {
+        if (data === undefined || dataLength === 0) {
             throw new OrderNotFound (this.id + ' could not found matching order');
         }
         return this.parseOrder (data[0], market);
@@ -617,21 +606,18 @@ module.exports = class oceanex extends Exchange {
     }
 
     async cancelOrder (id, symbol = undefined, params = {}) {
-        await this.loadMarkets ();
         const response = await this.privatePostOrderDelete (this.extend ({ 'id': id }, params));
         const data = this.safeValue (response, 'data');
         return this.parseOrder (data);
     }
 
     async cancelOrders (ids, symbol = undefined, params = {}) {
-        await this.loadMarkets ();
         const response = await this.privatePostOrderDeleteMulti (this.extend ({ 'ids': ids }, params));
         const data = this.safeValue (response, 'data');
         return this.parseOrders (data);
     }
 
     async cancelAllOrders (symbol = undefined, params = {}) {
-        await this.loadMarkets ();
         const response = await this.privatePostOrdersClear (params);
         const data = this.safeValue (response, 'data');
         return this.parseOrders (data);

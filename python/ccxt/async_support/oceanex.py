@@ -51,7 +51,6 @@ class oceanex (Exchange):
                 'createMarketOrder': True,
                 'createOrder': True,
                 'cancelOrder': True,
-                'cancelOrders': True,
                 'cancelAllOrders': True,
             },
             'timeframes': {
@@ -158,7 +157,7 @@ class oceanex (Exchange):
                 },
                 'limits': {
                     'amount': {
-                        'min': None,
+                        'min': self.safe_value(market, 'minimum_trading_amount'),
                         'max': None,
                     },
                     'price': {
@@ -166,7 +165,7 @@ class oceanex (Exchange):
                         'max': None,
                     },
                     'cost': {
-                        'min': self.safe_value(market, 'minimum_trading_amount'),
+                        'min': None,
                         'max': None,
                     },
                 },
@@ -461,22 +460,15 @@ class oceanex (Exchange):
         return self.parse_order(data, market)
 
     async def fetch_order(self, id, symbol=None, params={}):
-        ids = id
-        if not isinstance(id, list):
-            ids = [id]
         await self.load_markets()
         market = None
         if symbol is not None:
             market = self.market(symbol)
-        request = {'ids': ids}
+        request = {'ids': [id]}
         response = await self.privateGetOrders(self.extend(request, params))
         data = self.safe_value(response, 'data')
         dataLength = len(data)
-        if data is None:
-            raise OrderNotFound(self.id + ' could not found matching order')
-        if isinstance(id, list):
-            return self.parse_orders(data, market)
-        if dataLength == 0:
+        if data is None or dataLength == 0:
             raise OrderNotFound(self.id + ' could not found matching order')
         return self.parse_order(data[0], market)
 
@@ -573,19 +565,16 @@ class oceanex (Exchange):
         return self.parse_orders(data)
 
     async def cancel_order(self, id, symbol=None, params={}):
-        await self.load_markets()
         response = await self.privatePostOrderDelete(self.extend({'id': id}, params))
         data = self.safe_value(response, 'data')
         return self.parse_order(data)
 
     async def cancel_orders(self, ids, symbol=None, params={}):
-        await self.load_markets()
         response = await self.privatePostOrderDeleteMulti(self.extend({'ids': ids}, params))
         data = self.safe_value(response, 'data')
         return self.parse_orders(data)
 
     async def cancel_all_orders(self, symbol=None, params={}):
-        await self.load_markets()
         response = await self.privatePostOrdersClear(params)
         data = self.safe_value(response, 'data')
         return self.parse_orders(data)
@@ -627,7 +616,7 @@ class oceanex (Exchange):
             return
         errorCode = self.safe_string(response, 'code')
         message = self.safe_string(response, 'message')
-        if (errorCode is not None) and (errorCode != '0'):
+        if (errorCode is not None) and(errorCode != '0'):
             feedback = self.id + ' ' + body
             codes = self.exceptions['codes']
             exact = self.exceptions['exact']

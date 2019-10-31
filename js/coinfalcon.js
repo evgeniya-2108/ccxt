@@ -189,10 +189,10 @@ module.exports = class coinfalcon extends Exchange {
         let fee = undefined;
         const feeCost = this.safeFloat (trade, 'fee');
         if (feeCost !== undefined) {
-            const feeCurrencyCode = this.safeString (trade, 'fee_currency_code');
+            const feeCurrencyCode = undefined;
             fee = {
                 'cost': feeCost,
-                'currency': this.safeCurrencyCode (feeCurrencyCode),
+                'currency': feeCurrencyCode,
             };
         }
         return {

@@ -182,10 +182,10 @@ class coinfalcon (Exchange):
         fee = None
         feeCost = self.safe_float(trade, 'fee')
         if feeCost is not None:
-            feeCurrencyCode = self.safe_string(trade, 'fee_currency_code')
+            feeCurrencyCode = None
             fee = {
                 'cost': feeCost,
-                'currency': self.safe_currency_code(feeCurrencyCode),
+                'currency': feeCurrencyCode,
             }
         return {
             'info': trade,

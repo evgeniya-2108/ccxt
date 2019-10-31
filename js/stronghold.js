@@ -37,7 +37,6 @@ module.exports = class stronghold extends Exchange {
                 'fetchCurrencies': true,
                 'fetchOrderBook': true,
                 'fetchOpenOrders': true,
-                'fetchTime': true,
                 'fetchTrades': true,
                 'fetchMyTrades': true,
                 'fetchDepositAddress': false,

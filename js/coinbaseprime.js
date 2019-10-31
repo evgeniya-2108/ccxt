@@ -2,11 +2,11 @@
 
 // ---------------------------------------------------------------------------
 
-const coinbasepro = require ('./coinbasepro.js');
+const gdax = require ('./gdax.js');
 
 // ---------------------------------------------------------------------------
 
-module.exports = class coinbaseprime extends coinbasepro {
+module.exports = class coinbaseprime extends gdax {
     describe () {
         return this.deepExtend (super.describe (), {
             'id': 'coinbaseprime',

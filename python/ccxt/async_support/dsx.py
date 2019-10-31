@@ -198,12 +198,8 @@ class dsx (Exchange):
             }
             hidden = self.safe_integer(market, 'hidden')
             active = (hidden == 0)
-            # see parseMarket below
-            # https://github.com/ccxt/ccxt/pull/5786
-            otherId = base.lower() + quote.lower()
             result.append({
                 'id': id,
-                'otherId': otherId,  # https://github.com/ccxt/ccxt/pull/5786
                 'symbol': symbol,
                 'base': base,
                 'quote': quote,
@@ -277,7 +273,8 @@ class dsx (Exchange):
         timestamp = self.safe_timestamp(ticker, 'updated')
         symbol = None
         marketId = self.safe_string(ticker, 'pair')
-        market = self.parse_market(marketId)
+        if marketId in self.markets_by_id:
+            market = self.markets_by_id[marketId]
         if market is not None:
             symbol = market['symbol']
         # dsx average is inverted, liqui average is not
@@ -346,7 +343,7 @@ class dsx (Exchange):
         id = self.safe_string_2(trade, 'number', 'id')
         orderId = self.safe_string(trade, 'orderId')
         marketId = self.safe_string(trade, 'pair')
-        market = self.parse_market(marketId)
+        market = self.safe_value(self.markets_by_id, marketId, market)
         symbol = None
         if market is not None:
             symbol = market['symbol']
@@ -479,34 +476,6 @@ class dsx (Exchange):
             'pair': ids,
         }
         tickers = await self.publicGetTickerPair(self.extend(request, params))
-        #
-        #     {
-        #         "bchbtc" : {
-        #             "high" : 0.02989,
-        #             "low" : 0.02736,
-        #             "avg" : 33.90585,
-        #             "vol" : 0.65982205,
-        #             "vol_cur" : 0.0194604180960,
-        #             "last" : 0.03000,
-        #             "buy" : 0.02980,
-        #             "sell" : 0.03001,
-        #             "updated" : 1568104614,
-        #             "pair" : "bchbtc"
-        #         },
-        #         "ethbtc" : {
-        #             "high" : 0.01772,
-        #             "low" : 0.01742,
-        #             "avg" : 56.89082,
-        #             "vol" : 229.247115044,
-        #             "vol_cur" : 4.02959737298943,
-        #             "last" : 0.01769,
-        #             "buy" : 0.01768,
-        #             "sell" : 0.01776,
-        #             "updated" : 1568104614,
-        #             "pair" : "ethbtc"
-        #         }
-        #     }
-        #
         result = {}
         keys = list(tickers.keys())
         for k in range(0, len(keys)):
@@ -692,21 +661,6 @@ class dsx (Exchange):
         }
         return self.safe_string(statuses, status, status)
 
-    def parse_market(self, id):
-        if id in self.markets_by_id:
-            return self.markets_by_id[id]
-        else:
-            # the following is a fix for
-            # https://github.com/ccxt/ccxt/pull/5786
-            # https://github.com/ccxt/ccxt/issues/5770
-            markets_by_other_id = self.safe_value(self.options, 'markets_by_other_id')
-            if markets_by_other_id is None:
-                self.options['markets_by_other_id'] = self.index_by(self.markets, 'otherId')
-                markets_by_other_id = self.options['markets_by_other_id']
-            if id in markets_by_other_id:
-                return markets_by_other_id[id]
-        return None
-
     def parse_order(self, order, market=None):
         #
         # fetchOrder
@@ -739,7 +693,7 @@ class dsx (Exchange):
         status = self.parse_order_status(self.safe_string(order, 'status'))
         timestamp = self.safe_timestamp(order, 'timestampCreated')
         marketId = self.safe_string(order, 'pair')
-        market = self.parse_market(marketId)
+        market = self.safe_value(self.markets_by_id, marketId, market)
         symbol = None
         if market is not None:
             symbol = market['symbol']
@@ -878,8 +832,6 @@ class dsx (Exchange):
             # 'endId': 321,  # Decimal, ID of the last order of the selection
             # 'order': 'ASC',  # String, Order in which orders shown. Possible values are "ASC" — from first to last, "DESC" — from last to first.
         }
-        if limit is not None:
-            request['count'] = limit
         response = await self.privatePostHistoryOrders(self.extend(request, params))
         #
         #     {
@@ -984,7 +936,7 @@ class dsx (Exchange):
         #     }
         #
         transactions = self.safe_value(response, 'return', [])
-        return self.parse_transactions(transactions, currency, since, limit)
+        return self.parseTransactions(transactions, currency, since, limit)
 
     def parse_transaction_status(self, status):
         statuses = {

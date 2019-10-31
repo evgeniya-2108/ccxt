@@ -120,9 +120,6 @@ class coss extends Exchange {
                     'deposit' => array(),
                 ),
             ),
-            'commonCurrencies' => array (
-                'COS' => 'COSS',
-            ),
         ));
     }
 

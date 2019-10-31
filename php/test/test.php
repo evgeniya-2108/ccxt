@@ -189,7 +189,7 @@ function test_exchange($exchange) {
     );
 
     foreach ($symbols as $s) {
-        if (in_array ($s, $exchange->symbols) && (array_key_exists ('active', $exchange->markets[$s]) ? $exchange->markets[$s]['active'] : true)) {
+        if (in_array($s, $exchange->symbols)) {
             $symbol = $s;
             break;
         }

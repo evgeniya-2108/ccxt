@@ -3,7 +3,7 @@
 //  ---------------------------------------------------------------------------
 
 const Exchange = require ('./base/Exchange');
-const { ExchangeError, ArgumentsRequired, NullResponse, InvalidOrder, NotSupported, InsufficientFunds, InvalidNonce, OrderNotFound, RateLimitExceeded } = require ('./base/errors');
+const { ExchangeError, ArgumentsRequired, NullResponse, InvalidOrder, NotSupported } = require ('./base/errors');
 
 //  ---------------------------------------------------------------------------
 
@@ -116,16 +116,6 @@ module.exports = class cex extends Exchange {
                         'XRP': 0.0,
                         'XLM': 0.0,
                     },
-                },
-            },
-            'exceptions': {
-                'exact': {},
-                'broad': {
-                    'Insufficient funds': InsufficientFunds,
-                    'Nonce must be incremented': InvalidNonce,
-                    'Invalid Order': InvalidOrder,
-                    'Order not found': OrderNotFound,
-                    'Rate limit exceeded': RateLimitExceeded,
                 },
             },
             'options': {
@@ -322,11 +312,8 @@ module.exports = class cex extends Exchange {
                     pricePrecision = this.safeInteger (pair, 'pricePrecision', pricePrecision);
                 }
             }
-            const baseCcyPrecision = this.safeInteger (baseCurrency, 'precision', 8);
-            const baseCcyScale = this.safeInteger (baseCurrency, 'scale', 0);
-            const amountPrecision = baseCcyPrecision - baseCcyScale;
             const precision = {
-                'amount': amountPrecision,
+                'amount': this.safeInteger (baseCurrency, 'precision', 8),
                 'price': pricePrecision,
             };
             result.push ({
@@ -539,13 +526,15 @@ module.exports = class cex extends Exchange {
     }
 
     async createOrder (symbol, type, side, amount, price = undefined, params = {}) {
-        // for market buy it requires the amount of quote currency to spend
-        if ((type === 'market') && (side === 'buy')) {
-            if (this.options['createMarketBuyOrderRequiresPrice']) {
-                if (price === undefined) {
-                    throw new InvalidOrder (this.id + " createOrder() requires the price argument with market buy orders to calculate total order cost (amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = false to supply the cost in the amount argument (the exchange-specific behaviour)");
-                } else {
-                    amount = amount * price;
+        if (type === 'market') {
+            // for market buy it requires the amount of quote currency to spend
+            if (side === 'buy') {
+                if (this.options['createMarketBuyOrderRequiresPrice']) {
+                    if (price === undefined) {
+                        throw new InvalidOrder (this.id + " createOrder() requires the price argument with market buy orders to calculate total order cost (amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = false to supply the cost in the amount argument (the exchange-specific behaviour)");
+                    } else {
+                        amount = amount * price;
+                    }
                 }
             }
         }
@@ -783,7 +772,7 @@ module.exports = class cex extends Exchange {
                 const tradeAmount = this.safeFloat (item, 'amount');
                 const tradePrice = this.safeFloat (item, 'price');
                 const feeCost = this.safeFloat (item, 'fee_amount');
-                let absTradeAmount = (tradeAmount < 0) ? -tradeAmount : tradeAmount;
+                let absTradeAmount = tradeAmount < 0 ? -tradeAmount : tradeAmount;
                 let tradeCost = undefined;
                 if (tradeSide === 'sell') {
                     tradeCost = absTradeAmount;
@@ -1148,36 +1137,27 @@ module.exports = class cex extends Exchange {
         return { 'url': url, 'method': method, 'body': body, 'headers': headers };
     }
 
-    handleErrors (code, reason, url, method, headers, body, response, requestHeaders, requestBody) {
+    async request (path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
+        const response = await this.fetch2 (path, api, method, params, headers, body);
         if (Array.isArray (response)) {
             return response; // public endpoints may return []-arrays
         }
         if (!response) {
             throw new NullResponse (this.id + ' returned ' + this.json (response));
-        }
-        if (response === true || response === 'true') {
-            return;
-        }
-        if ('e' in response) {
+        } else if (response === true || response === 'true') {
+            return response;
+        } else if ('e' in response) {
             if ('ok' in response) {
                 if (response['ok'] === 'ok') {
-                    return;
+                    return response;
                 }
             }
-        }
-        if ('error' in response) {
-            const message = this.safeString (response, 'error');
-            const feedback = this.id + ' ' + body;
-            const exact = this.exceptions['exact'];
-            if (message in exact) {
-                throw new exact[message] (feedback);
+            throw new ExchangeError (this.id + ' ' + this.json (response));
+        } else if ('error' in response) {
+            if (response['error']) {
+                throw new ExchangeError (this.id + ' ' + this.json (response));
             }
-            const broad = this.exceptions['broad'];
-            const broadKey = this.findBroadlyMatchedKey (broad, message);
-            if (broadKey !== undefined) {
-                throw new broad[broadKey] (feedback);
-            }
-            throw new ExchangeError (feedback);
         }
+        return response;
     }
 };

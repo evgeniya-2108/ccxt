@@ -4,7 +4,6 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.async_support.base.exchange import Exchange
-import math
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import ArgumentsRequired
@@ -30,7 +29,7 @@ class latoken (Exchange):
             'has': {
                 'CORS': False,
                 'publicAPI': True,
-                'privateAPI': True,
+                'pivateAPI': True,
                 'cancelOrder': True,
                 'cancelAllOrders': True,
                 'createMarketOrder': False,
@@ -98,9 +97,6 @@ class latoken (Exchange):
                     'maker': 0.1 / 100,
                     'taker': 0.1 / 100,
                 },
-            },
-            'commonCurrencies': {
-                'TSL': 'Treasure SL',
             },
             'options': {
                 'createOrderMethod': 'private_post_order_new',  # private_post_order_test_order
@@ -177,7 +173,7 @@ class latoken (Exchange):
                     'max': None,
                 },
                 'price': {
-                    'min': math.pow(10, -precision['price']),
+                    'min': None,
                     'max': None,
                 },
                 'cost': {
@@ -355,8 +351,8 @@ class latoken (Exchange):
             'change': change,
             'percentage': percentage,
             'average': None,
-            'baseVolume': None,
-            'quoteVolume': self.safe_float(ticker, 'volume'),
+            'baseVolume': self.safe_float(ticker, 'volume'),
+            'quoteVolume': None,
             'info': ticker,
         }
 
@@ -592,9 +588,7 @@ class latoken (Exchange):
             if price is not None:
                 cost = filled * price
         timeFilled = self.safe_timestamp(order, 'timeFilled')
-        lastTradeTimestamp = None
-        if (timeFilled is not None) and (timeFilled > 0):
-            lastTradeTimestamp = timeFilled
+        lastTradeTimestamp = timeFilled if (timeFilled > 0) else None
         return {
             'id': id,
             'info': order,

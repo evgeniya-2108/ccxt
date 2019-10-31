@@ -190,10 +190,10 @@ class coinfalcon extends Exchange {
         $fee = null;
         $feeCost = $this->safe_float($trade, 'fee');
         if ($feeCost !== null) {
-            $feeCurrencyCode = $this->safe_string($trade, 'fee_currency_code');
+            $feeCurrencyCode = null;
             $fee = array (
                 'cost' => $feeCost,
-                'currency' => $this->safe_currency_code($feeCurrencyCode),
+                'currency' => $feeCurrencyCode,
             );
         }
         return array (

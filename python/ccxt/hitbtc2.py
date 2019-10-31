@@ -882,7 +882,7 @@ class hitbtc2 (hitbtc):
         if since is not None:
             request['startTime'] = since
         response = self.privateGetAccountTransactions(self.extend(request, params))
-        return self.parse_transactions(response, currency, since, limit)
+        return self.parseTransactions(response, currency, since, limit)
 
     def parse_transaction(self, transaction, currency=None):
         #
@@ -1147,12 +1147,9 @@ class hitbtc2 (hitbtc):
                 if feeCost is None:
                     feeCost = 0
                 tradesCost = self.sum(tradesCost, trades[i]['cost'])
-                tradeFee = self.safe_value(trades[i], 'fee', {})
-                tradeFeeCost = self.safe_float(tradeFee, 'cost')
-                if tradeFeeCost is not None:
-                    feeCost = self.sum(feeCost, tradeFeeCost)
+                feeCost = self.sum(feeCost, trades[i]['fee']['cost'])
             cost = tradesCost
-            if (filled is not None) and (filled > 0):
+            if (filled is not None) and(filled > 0):
                 average = cost / filled
                 if type == 'market':
                     if price is None:
@@ -1386,10 +1383,6 @@ class hitbtc2 (hitbtc):
             # {"code":504,"message":"Gateway Timeout","description":""}
             if (code == 503) or (code == 504):
                 raise ExchangeNotAvailable(feedback)
-            # fallback to default error handler on rate limit errors
-            # {"code":429,"message":"Too many requests","description":"Too many requests"}
-            if code == 429:
-                return
             # {"error":{"code":20002,"message":"Order not found","description":""}}
             if body[0] == '{':
                 if 'error' in response:

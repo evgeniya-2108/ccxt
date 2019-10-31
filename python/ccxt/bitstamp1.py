@@ -5,7 +5,6 @@
 
 from ccxt.base.exchange import Exchange
 from ccxt.base.errors import ExchangeError
-from ccxt.base.errors import BadSymbol
 from ccxt.base.errors import NotSupported
 
 
@@ -155,7 +154,7 @@ class bitstamp1 (Exchange):
 
     def fetch_trades(self, symbol, since=None, limit=None, params={}):
         if symbol != 'BTC/USD':
-            raise BadSymbol(self.id + ' ' + self.version + " fetchTrades doesn't support " + symbol + ', use it for BTC/USD only')
+            raise ExchangeError(self.id + ' ' + self.version + " fetchTrades doesn't support " + symbol + ', use it for BTC/USD only')
         self.load_markets()
         market = self.market(symbol)
         request = {

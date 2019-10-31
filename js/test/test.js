@@ -14,6 +14,7 @@ const asTable   = require ('as-table')
     , ansi      = require ('ansicolor').nice
     , fs        = require ('fs')
     , ccxt      = require ('../../ccxt.js')
+    , countries = require ('../../build/countries.js')
     , chai      = require ('chai')
     , expect    = chai.expect
     , assert    = chai.assert
@@ -39,7 +40,7 @@ let proxies = [
     // 'https://crossorigin.me/',
 ]
 
-//-----------------------------------------------------------------------------
+/*  ------------------------------------------------------------------------ */
 
 const enableRateLimit = true
 
@@ -101,6 +102,12 @@ Object.assign (exchange, settings)
 if (settings && settings.skip) {
     log.error.bright ('[Skipped]', { exchange: exchangeId, symbol: exchangeSymbol || 'all' })
     process.exit ()
+}
+
+//-----------------------------------------------------------------------------
+
+let countryName = function (code) {
+    return ((countries[code] !== undefined) ? countries[code] : code)
 }
 
 //-----------------------------------------------------------------------------
@@ -238,8 +245,7 @@ let testExchange = async exchange => {
         'ZRX/WETH',
     ]
     for (let s in symbols) {
-        if (exchange.symbols.includes (symbols[s]) &&
-            (('active' in exchange.markets[symbols[s]]) ? exchange.markets[symbols[s]]['active'] : true)) {
+        if (exchange.symbols.includes (symbols[s])) {
             symbol = symbols[s]
             break
         }
@@ -326,6 +332,35 @@ let testExchange = async exchange => {
 
 //-----------------------------------------------------------------------------
 
+let printExchangesTable = function () {
+
+    let astable = asTable.configure ({ delimiter: ' | ' })
+
+    console.log (astable (Object.values (exchanges).map (exchange => {
+
+        let website = Array.isArray (exchange.urls.www) ?
+            exchange.urls.www[0] :
+            exchange.urls.www
+
+        let countries = Array.isArray (exchange.countries) ?
+            exchange.countries.map (countryName).join (', ') :
+            countryName (exchange.countries)
+
+        let doc = Array.isArray (exchange.urls.doc) ?
+            exchange.urls.doc[0] :
+            exchange.urls.doc
+
+        return {
+            'id':        exchange.id,
+            'name':      exchange.name,
+            'countries': countries,
+        }
+
+    })))
+}
+
+//-----------------------------------------------------------------------------
+
 let tryAllProxies = async function (exchange, proxies) {
 
     let currentProxy = 0
@@ -382,5 +417,4 @@ let tryAllProxies = async function (exchange, proxies) {
 
         await tryAllProxies (exchange, proxies)
     }
-
 }) ()

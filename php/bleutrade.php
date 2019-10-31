@@ -324,7 +324,7 @@ class bleutrade extends bittrex {
         $this->load_markets();
         $method = ($type === 'deposit') ? 'accountGetDeposithistory' : 'accountGetWithdrawhistory';
         $response = $this->$method ($params);
-        $result = $this->parse_transactions($response['result']);
+        $result = $this->parseTransactions ($response['result']);
         return $this->filterByCurrencySinceLimit ($result, $code, $since, $limit);
     }
 

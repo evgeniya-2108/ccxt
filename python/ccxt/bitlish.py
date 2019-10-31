@@ -30,7 +30,6 @@ class bitlish (Exchange):
                 'api': 'https://bitlish.com/api',
                 'www': 'https://bitlish.com',
                 'doc': 'https://bitlish.com/api',
-                'fees': 'https://bitlish.com/fees',
             },
             'requiredCredentials': {
                 'apiKey': True,
@@ -41,7 +40,7 @@ class bitlish (Exchange):
                     'tierBased': False,
                     'percentage': True,
                     'taker': 0.3 / 100,  # anonymous 0.3%, verified 0.2%
-                    'maker': 0.2 / 100,  # anonymous 0.2%, verified 0.1%
+                    'maker': 0,
                 },
                 'funding': {
                     'tierBased': False,

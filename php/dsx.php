@@ -182,12 +182,8 @@ class dsx extends Exchange {
             );
             $hidden = $this->safe_integer($market, 'hidden');
             $active = ($hidden === 0);
-            // see parseMarket below
-            // https://github.com/ccxt/ccxt/pull/5786
-            $otherId = strtolower($base) . strtolower($quote);
             $result[] = array (
                 'id' => $id,
-                'otherId' => $otherId, // https://github.com/ccxt/ccxt/pull/5786
                 'symbol' => $symbol,
                 'base' => $base,
                 'quote' => $quote,
@@ -265,7 +261,9 @@ class dsx extends Exchange {
         $timestamp = $this->safe_timestamp($ticker, 'updated');
         $symbol = null;
         $marketId = $this->safe_string($ticker, 'pair');
-        $market = $this->parse_market ($marketId);
+        if (is_array($this->markets_by_id) && array_key_exists($marketId, $this->markets_by_id)) {
+            $market = $this->markets_by_id[$marketId];
+        }
         if ($market !== null) {
             $symbol = $market['symbol'];
         }
@@ -339,7 +337,7 @@ class dsx extends Exchange {
         $id = $this->safe_string_2($trade, 'number', 'id');
         $orderId = $this->safe_string($trade, 'orderId');
         $marketId = $this->safe_string($trade, 'pair');
-        $market = $this->parse_market ($marketId);
+        $market = $this->safe_value($this->markets_by_id, $marketId, $market);
         $symbol = null;
         if ($market !== null) {
             $symbol = $market['symbol'];
@@ -496,34 +494,6 @@ class dsx extends Exchange {
             'pair' => $ids,
         );
         $tickers = $this->publicGetTickerPair (array_merge ($request, $params));
-        //
-        //     {
-        //         "bchbtc" : array (
-        //             "high" : 0.02989,
-        //             "low" : 0.02736,
-        //             "avg" : 33.90585,
-        //             "vol" : 0.65982205,
-        //             "vol_cur" : 0.0194604180960,
-        //             "last" : 0.03000,
-        //             "buy" : 0.02980,
-        //             "sell" : 0.03001,
-        //             "updated" : 1568104614,
-        //             "pair" : "bchbtc"
-        //         ),
-        //         "ethbtc" : {
-        //             "high" : 0.01772,
-        //             "low" : 0.01742,
-        //             "avg" : 56.89082,
-        //             "vol" : 229.247115044,
-        //             "vol_cur" : 4.02959737298943,
-        //             "last" : 0.01769,
-        //             "buy" : 0.01768,
-        //             "sell" : 0.01776,
-        //             "updated" : 1568104614,
-        //             "pair" : "ethbtc"
-        //         }
-        //     }
-        //
         $result = array();
         $keys = is_array($tickers) ? array_keys($tickers) : array();
         for ($k = 0; $k < count ($keys); $k++) {
@@ -726,25 +696,6 @@ class dsx extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_market ($id) {
-        if (is_array($this->markets_by_id) && array_key_exists($id, $this->markets_by_id)) {
-            return $this->markets_by_id[$id];
-        } else {
-            // the following is a fix for
-            // https://github.com/ccxt/ccxt/pull/5786
-            // https://github.com/ccxt/ccxt/issues/5770
-            $markets_by_other_id = $this->safe_value($this->options, 'markets_by_other_id');
-            if ($markets_by_other_id === null) {
-                $this->options['markets_by_other_id'] = $this->index_by($this->markets, 'otherId');
-                $markets_by_other_id = $this->options['markets_by_other_id'];
-            }
-            if (is_array($markets_by_other_id) && array_key_exists($id, $markets_by_other_id)) {
-                return $markets_by_other_id[$id];
-            }
-        }
-        return null;
-    }
-
     public function parse_order ($order, $market = null) {
         //
         // fetchOrder
@@ -777,7 +728,7 @@ class dsx extends Exchange {
         $status = $this->parse_order_status($this->safe_string($order, 'status'));
         $timestamp = $this->safe_timestamp($order, 'timestampCreated');
         $marketId = $this->safe_string($order, 'pair');
-        $market = $this->parse_market ($marketId);
+        $market = $this->safe_value($this->markets_by_id, $marketId, $market);
         $symbol = null;
         if ($market !== null) {
             $symbol = $market['symbol'];
@@ -928,9 +879,6 @@ class dsx extends Exchange {
             // 'endId' => 321, // Decimal, ID of the last order of the selection
             // 'order' => 'ASC', // String, Order in which orders shown. Possible values are "ASC" — from first to last, "DESC" — from last to first.
         );
-        if ($limit !== null) {
-            $request['count'] = $limit;
-        }
         $response = $this->privatePostHistoryOrders (array_merge ($request, $params));
         //
         //     {
@@ -1050,7 +998,7 @@ class dsx extends Exchange {
         //     }
         //
         $transactions = $this->safe_value($response, 'return', array());
-        return $this->parse_transactions($transactions, $currency, $since, $limit);
+        return $this->parseTransactions ($transactions, $currency, $since, $limit);
     }
 
     public function parse_transaction_status ($status) {

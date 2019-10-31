@@ -1,5 +1,4 @@
 {
-    "adara":         { "skip": true },
     "allcoin":       { "skip": true },
     "bcex":          { "skip": true },
     "bibox":         { "skip": true },
@@ -43,7 +42,6 @@
     "dsx":           { "skip": true },
     "dx":            { "skip": true },
     "ethfinex":      { "skip": true },
-    "exmo":          { "skip": true },
     "exx":           { "skip": true },
     "fcoin":         { "skip": true },
     "flowbtc":       { "skip": true },
@@ -69,7 +67,6 @@
     "mandala":       { "skip": true },
     "mixcoins":      { "skip": true },
     "nova":          { "skip": true },
-    "oceanex":       { "skip": true },
     "okcoincny":     { "skip": true },
     "okcoinusd":     { "skip": true },
     "okex3":         { "skip": true },

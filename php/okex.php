@@ -44,17 +44,18 @@ class okex extends okcoinusd {
                     'maker' => 0.0010,
                 ),
                 'future' => array (
-                    'taker' => 0.0005,
-                    'maker' => 0.0002,
+                    'taker' => 0.0030,
+                    'maker' => 0.0020,
                 ),
                 'swap' => array (
-                    'taker' => 0.00075,
-                    'maker' => 0.0002,
+                    'taker' => 0.0070,
+                    'maker' => 0.0020,
                 ),
             ),
             'commonCurrencies' => array (
                 // OKEX refers to ERC20 version of Aeternity (AEToken)
                 'AE' => 'AET', // https://github.com/ccxt/ccxt/issues/4981
+                'FAIR' => 'FairGame',
                 'HOT' => 'Hydro Protocol',
                 'HSR' => 'HC',
                 'MAG' => 'Maggie',

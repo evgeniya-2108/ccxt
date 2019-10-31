@@ -27,7 +27,6 @@ module.exports = class bithumb extends Exchange {
                 },
                 'www': 'https://www.bithumb.com',
                 'doc': 'https://apidocs.bithumb.com',
-                'fees': 'https://en.bithumb.com/customer_support/info_fee',
             },
             'api': {
                 'public': {
@@ -61,8 +60,8 @@ module.exports = class bithumb extends Exchange {
             },
             'fees': {
                 'trading': {
-                    'maker': 0.25 / 100,
-                    'taker': 0.25 / 100,
+                    'maker': 0.15 / 100,
+                    'taker': 0.15 / 100,
                 },
             },
             'exceptions': {
@@ -190,11 +189,11 @@ module.exports = class bithumb extends Exchange {
             }
             average = this.sum (open, close) / 2;
         }
-        const baseVolume = this.safeFloat (ticker, 'units_traded_24H');
-        const quoteVolume = this.safeFloat (ticker, 'acc_trade_value_24H');
-        let vwap = undefined;
-        if (quoteVolume !== undefined && baseVolume !== undefined) {
-            vwap = quoteVolume / baseVolume;
+        const vwap = this.safeFloat (ticker, 'average_price');
+        const baseVolume = this.safeFloat (ticker, 'volume_1day');
+        let quoteVolume = undefined;
+        if (vwap !== undefined && baseVolume !== undefined) {
+            quoteVolume = baseVolume * vwap;
         }
         return {
             'symbol': symbol,

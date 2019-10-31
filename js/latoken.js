@@ -21,7 +21,7 @@ module.exports = class latoken extends Exchange {
             'has': {
                 'CORS': false,
                 'publicAPI': true,
-                'privateAPI': true,
+                'pivateAPI': true,
                 'cancelOrder': true,
                 'cancelAllOrders': true,
                 'createMarketOrder': false,
@@ -89,9 +89,6 @@ module.exports = class latoken extends Exchange {
                     'maker': 0.1 / 100,
                     'taker': 0.1 / 100,
                 },
-            },
-            'commonCurrencies': {
-                'TSL': 'Treasure SL',
             },
             'options': {
                 'createOrderMethod': 'private_post_order_new', // private_post_order_test_order
@@ -171,7 +168,7 @@ module.exports = class latoken extends Exchange {
                     'max': undefined,
                 },
                 'price': {
-                    'min': Math.pow (10, -precision['price']),
+                    'min': undefined,
                     'max': undefined,
                 },
                 'cost': {
@@ -359,8 +356,8 @@ module.exports = class latoken extends Exchange {
             'change': change,
             'percentage': percentage,
             'average': undefined,
-            'baseVolume': undefined,
-            'quoteVolume': this.safeFloat (ticker, 'volume'),
+            'baseVolume': this.safeFloat (ticker, 'volume'),
+            'quoteVolume': undefined,
             'info': ticker,
         };
     }
@@ -619,10 +616,7 @@ module.exports = class latoken extends Exchange {
             }
         }
         const timeFilled = this.safeTimestamp (order, 'timeFilled');
-        let lastTradeTimestamp = undefined;
-        if ((timeFilled !== undefined) && (timeFilled > 0)) {
-            lastTradeTimestamp = timeFilled;
-        }
+        const lastTradeTimestamp = (timeFilled > 0) ? timeFilled : undefined;
         return {
             'id': id,
             'info': order,

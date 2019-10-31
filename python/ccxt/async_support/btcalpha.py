@@ -7,7 +7,6 @@ from ccxt.async_support.base.exchange import Exchange
 import math
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
-from ccxt.base.errors import InsufficientFunds
 from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import DDoSProtection
 
@@ -106,15 +105,6 @@ class btcalpha (Exchange):
                         'BCH': None,
                         'QBIC': 0.5,
                     },
-                },
-            },
-            'commonCurrencies': {
-                'CBC': 'Cashbery',
-            },
-            'exceptions': {
-                'exact': {},
-                'broad': {
-                    'Out of balance': InsufficientFunds,  # {"date":1570599531.4814300537,"error":"Out of balance -9.99243661 BTC"}
                 },
             },
         })
@@ -274,15 +264,6 @@ class btcalpha (Exchange):
         trades = self.safe_value(order, 'trades', [])
         trades = self.parse_trades(trades, market)
         side = self.safe_string_2(order, 'my_side', 'type')
-        filled = None
-        numTrades = len(trades)
-        if numTrades > 0:
-            filled = 0.0
-            for i in range(0, numTrades):
-                filled = self.sum(filled, trades[i]['amount'])
-        remaining = None
-        if (amount is not None) and (amount > 0) and (filled is not None):
-            remaining = max(0, amount - filled)
         return {
             'id': id,
             'datetime': self.iso8601(timestamp),
@@ -294,8 +275,8 @@ class btcalpha (Exchange):
             'price': price,
             'cost': None,
             'amount': amount,
-            'filled': filled,
-            'remaining': remaining,
+            'filled': None,
+            'remaining': None,
             'trades': trades,
             'fee': None,
             'info': order,
@@ -313,11 +294,7 @@ class btcalpha (Exchange):
         response = await self.privatePostOrder(self.extend(request, params))
         if not response['success']:
             raise InvalidOrder(self.id + ' ' + self.json(response))
-        order = self.parse_order(response, market)
-        amount = order['amount'] if (order['amount'] > 0) else amount
-        return self.extend(order, {
-            'amount': amount,
-        })
+        return self.parse_order(response, market)
 
     async def cancel_order(self, id, symbol=None, params={}):
         request = {
@@ -399,23 +376,11 @@ class btcalpha (Exchange):
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
             return  # fallback to default error handler
-        #
-        #     {"date":1570599531.4814300537,"error":"Out of balance -9.99243661 BTC"}
-        #
-        error = self.safe_string(response, 'error')
-        feedback = self.id + ' ' + body
-        if error is not None:
-            exact = self.exceptions['exact']
-            if error in exact:
-                raise exact[error](feedback)
-            broad = self.exceptions['broad']
-            broadKey = self.findBroadlyMatchedKey(broad, error)
-            if broadKey is not None:
-                raise broad[broadKey](feedback)
-        if code == 401 or code == 403:
-            raise AuthenticationError(feedback)
-        elif code == 429:
-            raise DDoSProtection(feedback)
         if code < 400:
-            return
-        raise ExchangeError(feedback)
+            return  # fallback to default error handler
+        message = self.id + ' ' + self.safe_value(response, 'detail', body)
+        if code == 401 or code == 403:
+            raise AuthenticationError(message)
+        elif code == 429:
+            raise DDoSProtection(message)
+        raise ExchangeError(message)

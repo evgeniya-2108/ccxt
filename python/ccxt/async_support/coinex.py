@@ -171,14 +171,11 @@ class coinex (Exchange):
             key = keys[i]
             market = markets[key]
             id = self.safe_string(market, 'name')
-            tradingName = self.safe_string(market, 'trading_name')
-            baseId = tradingName
+            baseId = self.safe_string(market, 'trading_name')
             quoteId = self.safe_string(market, 'pricing_name')
             base = self.safe_currency_code(baseId)
             quote = self.safe_currency_code(quoteId)
             symbol = base + '/' + quote
-            if tradingName == id:
-                symbol = id
             precision = {
                 'amount': self.safe_integer(market, 'trading_decimal'),
                 'price': self.safe_integer(market, 'pricing_decimal'),
@@ -468,27 +465,26 @@ class coinex (Exchange):
         }
 
     async def create_order(self, symbol, type, side, amount, price=None, params={}):
+        amount = float(amount)  # self line is deprecated
+        if type == 'market':
+            # for market buy it requires the amount of quote currency to spend
+            if side == 'buy':
+                if self.options['createMarketBuyOrderRequiresPrice']:
+                    if price is None:
+                        raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False to supply the cost in the amount argument(the exchange-specific behaviour)")
+                    else:
+                        price = float(price)  # self line is deprecated
+                        amount = amount * price
         await self.load_markets()
         method = 'privatePostOrder' + self.capitalize(type)
         market = self.market(symbol)
         request = {
             'market': market['id'],
+            'amount': self.amount_to_precision(symbol, amount),
             'type': side,
         }
-        amount = float(amount)
-        # for market buy it requires the amount of quote currency to spend
-        if (type == 'market') and (side == 'buy'):
-            if self.options['createMarketBuyOrderRequiresPrice']:
-                if price is None:
-                    raise InvalidOrder(self.id + " createOrder() requires the price argument with market buy orders to calculate total order cost(amount to spend), where cost = amount * price. Supply a price argument to createOrder() call if you want the cost to be calculated for you from price and amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = False to supply the cost in the amount argument(the exchange-specific behaviour)")
-                else:
-                    price = float(price)
-                    request['amount'] = self.cost_to_precision(symbol, amount * price)
-            else:
-                request['amount'] = self.cost_to_precision(symbol, amount)
-        else:
-            request['amount'] = self.amount_to_precision(symbol, amount)
-        if (type == 'limit') or (type == 'ioc'):
+        if type == 'limit':
+            price = float(price)  # self line is deprecated
             request['price'] = self.price_to_precision(symbol, price)
         response = await getattr(self, method)(self.extend(request, params))
         order = self.parse_order(response['data'], market)
@@ -762,7 +758,7 @@ class coinex (Exchange):
         #         "message": "Ok"
         #     }
         #
-        return self.parse_transactions(response['data'], currency, since, limit)
+        return self.parseTransactions(response['data'], currency, since, limit)
 
     async def fetch_deposits(self, code=None, since=None, limit=None, params={}):
         if code is None:
@@ -802,7 +798,7 @@ class coinex (Exchange):
         #         "message": "Ok"
         #     }
         #
-        return self.parse_transactions(response['data'], currency, since, limit)
+        return self.parseTransactions(response['data'], currency, since, limit)
 
     def nonce(self):
         return self.milliseconds()
@@ -838,8 +834,7 @@ class coinex (Exchange):
         response = await self.fetch2(path, api, method, params, headers, body)
         code = self.safe_string(response, 'code')
         data = self.safe_value(response, 'data')
-        message = self.safe_string(response, 'message')
-        if (code != '0') or (data is None) or ((message != 'Ok') and not data):
+        if code != '0' or not data:
             responseCodes = {
                 '24': AuthenticationError,
                 '25': AuthenticationError,

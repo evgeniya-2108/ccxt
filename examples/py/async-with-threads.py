@@ -20,20 +20,10 @@ async def test(loop):
     await exchange.close()
 
 
-def function_in_a_thread():
-    # get_event_loop doesn't work inside a thread
+def functionInNewThread():
     loop = asyncio.new_event_loop()
     loop.run_until_complete(test(loop))
 
-
-def another_threaded_function():
-    global_loop.run_until_complete(test(global_loop))
-
-
-global_loop = asyncio.get_event_loop()
-thread = threading.Thread(target=function_in_a_thread)
-thread2 = threading.Thread(target=another_threaded_function)
+thread = threading.Thread(target=functionInNewThread)
 thread.start()
-thread2.start()
 thread.join()
-thread2.join()

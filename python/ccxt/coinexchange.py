@@ -548,7 +548,6 @@ class coinexchange (Exchange):
                 'BONPAY': 'BON',
                 'eNAU': 'ENAU',
                 'ETN': 'Ethernex',
-                'FAIR': 'FairCoin',
                 'FRC': 'FireRoosterCoin',
                 'GET': 'GreenEnergyToken',
                 'GDC': 'GoldenCryptoCoin',

@@ -6,9 +6,7 @@ error_hierarchy = {
                 'AccountSuspended': {},
             },
             'ArgumentsRequired': {},
-            'BadRequest': {
-                'BadSymbol': {},
-            },
+            'BadRequest': {},
             'BadResponse': {
                 'NullResponse': {},
             },
@@ -27,12 +25,8 @@ error_hierarchy = {
             'NotSupported': {},
         },
         'NetworkError': {
-            'DDoSProtection': {
-                'RateLimitExceeded': {},
-            },
-            'ExchangeNotAvailable': {
-                'OnMaintenance': {},
-            },
+            'DDoSProtection': {},
+            'ExchangeNotAvailable': {},
             'InvalidNonce': {},
             'RequestTimeout': {},
         },

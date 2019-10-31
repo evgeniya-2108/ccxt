@@ -110,12 +110,8 @@ class poloniex extends Exchange {
             ),
             'fees' => array (
                 'trading' => array (
-                    // https://github.com/ccxt/ccxt/issues/6064
-                    // starting from October 21, 2019 17:00 UTC
-                    // all spot trading fees will be reduced to 0.00%
-                    // until December 31, 2019 23:59 UTC
-                    'maker' => 0.0,
-                    'taker' => 0.0,
+                    'maker' => 0.15 / 100,
+                    'taker' => 0.25 / 100,
                 ),
                 'funding' => array(),
             ),
@@ -1195,8 +1191,8 @@ class poloniex extends Exchange {
         if ($code !== null) {
             $currency = $this->currency ($code);
         }
-        $withdrawals = $this->parse_transactions($response['withdrawals'], $currency, $since, $limit);
-        $deposits = $this->parse_transactions($response['deposits'], $currency, $since, $limit);
+        $withdrawals = $this->parseTransactions ($response['withdrawals'], $currency, $since, $limit);
+        $deposits = $this->parseTransactions ($response['deposits'], $currency, $since, $limit);
         $transactions = $this->array_concat($deposits, $withdrawals);
         return $this->filterByCurrencySinceLimit ($this->sort_by($transactions, 'timestamp'), $code, $since, $limit);
     }
@@ -1210,7 +1206,7 @@ class poloniex extends Exchange {
         if ($code !== null) {
             $currency = $this->currency ($code);
         }
-        $withdrawals = $this->parse_transactions($response['withdrawals'], $currency, $since, $limit);
+        $withdrawals = $this->parseTransactions ($response['withdrawals'], $currency, $since, $limit);
         return $this->filterByCurrencySinceLimit ($withdrawals, $code, $since, $limit);
     }
 
@@ -1223,7 +1219,7 @@ class poloniex extends Exchange {
         if ($code !== null) {
             $currency = $this->currency ($code);
         }
-        $deposits = $this->parse_transactions($response['deposits'], $currency, $since, $limit);
+        $deposits = $this->parseTransactions ($response['deposits'], $currency, $since, $limit);
         return $this->filterByCurrencySinceLimit ($deposits, $code, $since, $limit);
     }
 

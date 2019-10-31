@@ -26,7 +26,7 @@ module.exports = async (exchange) => {
 
         const method = 'fetchTradingFees'
         const fees = await exchange[method] ()
-        log.green ({ 'maker': fees['maker'], 'taker': fees['taker'] })
+        log.green (fees)
         return fees
 
     } else {

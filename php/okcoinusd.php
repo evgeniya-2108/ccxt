@@ -133,13 +133,12 @@ class okcoinusd extends Exchange {
                     'https://www.npmjs.com/package/okcoin.com',
                 ),
                 'referral' => 'https://www.okcoin.com/account/register?flag=activity&channelId=600001513',
-                'fees' => 'https://support.okcoin.com/hc/en-us/articles/360015261532-OKCoin-Fee-Rates',
             ),
             // these are okcoin.com fees, okex fees are in okex.js
             'fees' => array (
                 'trading' => array (
-                    'taker' => 0.002,
-                    'maker' => 0.001,
+                    'taker' => 0.001,
+                    'maker' => 0.0005,
                 ),
             ),
             'exceptions' => array (
@@ -715,6 +714,7 @@ class okcoinusd extends Exchange {
         $method = $market['future'] ? 'publicGetFutureKline' : 'publicGetKline';
         $request = $this->create_request ($market, array (
             'type' => $this->timeframes[$timeframe],
+            // 'since' => $since === null ? $this->milliseconds () - 86400000 : $since,  // default last 24h
         ));
         if ($since !== null) {
             $request['since'] = intval (($this->milliseconds () - 86400000) / 1000); // default last 24h
