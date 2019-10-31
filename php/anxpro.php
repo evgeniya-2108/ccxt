@@ -210,7 +210,7 @@ class anxpro extends Exchange {
         $transactions = $this->safe_value($response, 'transactions', array());
         $grouped = $this->group_by($transactions, 'transactionType', array());
         $depositsAndWithdrawals = $this->array_concat($this->safe_value($grouped, 'DEPOSIT', array()), $this->safe_value($grouped, 'WITHDRAWAL', array()));
-        return $this->parseTransactions ($depositsAndWithdrawals, $currency, $since, $limit);
+        return $this->parse_transactions($depositsAndWithdrawals, $currency, $since, $limit);
     }
 
     public function parse_transaction ($transaction, $currency = null) {
@@ -888,6 +888,8 @@ class anxpro extends Exchange {
             'ACTIVE' => 'open',
             'FULL_FILL' => 'closed',
             'CANCEL' => 'canceled',
+            'USER_CANCEL_PARTIAL' => 'canceled',
+            'PARTIAL_FILL' => 'canceled',
         );
         return $this->safe_string($statuses, $status, $status);
     }
@@ -938,7 +940,7 @@ class anxpro extends Exchange {
         $settlementCurrency = $this->safe_string($order, 'settlementCurrency');
         $symbol = $this->find_symbol($tradedCurrency . '/' . $settlementCurrency);
         $buyTradedCurrency = $this->safe_string($order, 'buyTradedCurrency');
-        $side = $buyTradedCurrency === 'true' ? 'buy' : 'sell';
+        $side = ($buyTradedCurrency === 'true') ? 'buy' : 'sell';
         $timestamp = $this->safe_integer($order, 'timestamp');
         $lastTradeTimestamp = null;
         $trades = array();
@@ -956,7 +958,7 @@ class anxpro extends Exchange {
         }
         $price = $this->safe_float($order, 'limitPriceInSettlementCurrency');
         $executedAverageRate = $this->safe_float($order, 'executedAverageRate');
-        $remaining = $type === 'market' ? 0 : $this->safe_float($order, 'tradedCurrencyAmountOutstanding');
+        $remaining = ($type === 'market') ? 0 : $this->safe_float($order, 'tradedCurrencyAmountOutstanding');
         $amount = $this->safe_float($order, 'tradedCurrencyAmount');
         if (!$amount) {
             $settlementCurrencyAmount = $this->safe_float($order, 'settlementCurrencyAmount');
@@ -1143,6 +1145,7 @@ class anxpro extends Exchange {
         return array (
             'currency' => $code,
             'address' => $address,
+            'tag' => null,
             'info' => $response,
         );
     }

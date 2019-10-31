@@ -146,6 +146,7 @@ class bitmex (Exchange):
             'exceptions': {
                 'exact': {
                     'Invalid API Key.': AuthenticationError,
+                    'This key is disabled.': PermissionDenied,
                     'Access Denied': PermissionDenied,
                     'Duplicate clOrdID': InvalidOrder,
                     'orderQty is invalid': InvalidOrder,
@@ -419,6 +420,7 @@ class bitmex (Exchange):
         types = {
             'Withdrawal': 'transaction',
             'RealisedPNL': 'margin',
+            'UnrealisedPNL': 'margin',
             'Deposit': 'transaction',
             'Transfer': 'transfer',
             'AffiliatePayout': 'referral',
@@ -444,6 +446,29 @@ class bitmex (Exchange):
         #         timestamp: "2017-03-22T13:09:23.514Z"
         #     }
         #
+        # ButMEX returns the unrealized pnl from the wallet history endpoint.
+        # The unrealized pnl transaction has an empty timestamp.
+        # It is not related to historical pnl it has status set to "Pending".
+        # Therefore it's not a part of the history at all.
+        # https://github.com/ccxt/ccxt/issues/6047
+        #
+        #     {
+        #         "transactID":"00000000-0000-0000-0000-000000000000",
+        #         "account":121210,
+        #         "currency":"XBt",
+        #         "transactType":"UnrealisedPNL",
+        #         "amount":-5508,
+        #         "fee":0,
+        #         "transactStatus":"Pending",
+        #         "address":"XBTUSD",
+        #         "tx":"",
+        #         "text":"",
+        #         "transactTime":null,  # ←---------------------------- null
+        #         "walletBalance":139198767,
+        #         "marginBalance":139193259,
+        #         "timestamp":null  # ←---------------------------- null
+        #     }
+        #
         id = self.safe_string(item, 'transactID')
         account = self.safe_string(item, 'account')
         referenceId = self.safe_string(item, 'tx')
@@ -455,6 +480,11 @@ class bitmex (Exchange):
         if amount is not None:
             amount = amount * 1e-8
         timestamp = self.parse8601(self.safe_string(item, 'transactTime'))
+        if timestamp is None:
+            # https://github.com/ccxt/ccxt/issues/6047
+            # set the timestamp to zero, 1970 Jan 1 00:00:00
+            # for unrealized pnl and other transactions without a timestamp
+            timestamp = 0  # see comments above
         feeCost = self.safe_float(item, 'fee', 0)
         if feeCost is not None:
             feeCost = feeCost * 1e-8
@@ -546,7 +576,7 @@ class bitmex (Exchange):
         currency = None
         if code is not None:
             currency = self.currency(code)
-        return self.parseTransactions(transactions, currency, since, limit)
+        return self.parse_transactions(transactions, currency, since, limit)
 
     def parse_transaction_status(self, status):
         statuses = {
@@ -934,7 +964,7 @@ class bitmex (Exchange):
             }
         takerOrMaker = None
         if fee is not None:
-            takerOrMaker = fee['cost'] < 'maker' if 0 else 'taker'
+            takerOrMaker = 'maker' if (fee['cost'] < 0) else 'taker'
         symbol = None
         marketId = self.safe_string(trade, 'symbol')
         if marketId is not None:
