@@ -12,9 +12,10 @@ from ccxt.base.errors import ArgumentsRequired
 from ccxt.base.errors import InvalidOrder
 from ccxt.base.errors import OrderNotFound
 from ccxt.base.errors import DDoSProtection
+from ccxt.base.decimal_to_precision import ROUND
 
 
-class btcmarkets (Exchange):
+class btcmarkets(Exchange):
 
     def describe(self):
         return self.deep_extend(super(btcmarkets, self).describe(), {
@@ -90,6 +91,20 @@ class btcmarkets (Exchange):
             'exceptions': {
                 '3': InvalidOrder,
                 '6': DDoSProtection,
+            },
+            'fees': {
+                'percentage': True,
+                'tierBased': True,
+                'maker': -0.05 / 100,
+                'taker': 0.20 / 100,
+            },
+            'options': {
+                'fees': {
+                    'AUD': {
+                        'maker': 0.85 / 100,
+                        'taker': 0.85 / 100,
+                    },
+                },
             },
         })
 
@@ -210,8 +225,7 @@ class btcmarkets (Exchange):
             base = self.safe_currency_code(baseId)
             quote = self.safe_currency_code(quoteId)
             symbol = base + '/' + quote
-            # todo: refactor self
-            fee = 0.0085 if (quote == 'AUD') else 0.0022
+            fees = self.safe_value(self.safe_value(self.options, 'fees', {}), quote, self.fees)
             pricePrecision = 2
             amountPrecision = 4
             minAmount = 0.001  # where does it come from?
@@ -248,8 +262,8 @@ class btcmarkets (Exchange):
                 'baseId': baseId,
                 'quoteId': quoteId,
                 'active': None,
-                'maker': fee,
-                'taker': fee,
+                'maker': fees['maker'],
+                'taker': fees['taker'],
                 'limits': limits,
                 'precision': precision,
             })
@@ -384,7 +398,7 @@ class btcmarkets (Exchange):
         return self.parse_ticker(response, market)
 
     def parse_trade(self, trade, market=None):
-        timestamp = self.safe_timestamp(trade, 'timestamp')
+        timestamp = self.safe_timestamp(trade, 'date')
         symbol = None
         if market is not None:
             symbol = market['symbol']
@@ -431,8 +445,8 @@ class btcmarkets (Exchange):
         })
         request['currency'] = market['quote']
         request['instrument'] = market['base']
-        request['price'] = int(price * multiplier)
-        request['volume'] = int(amount * multiplier)
+        request['price'] = int(self.decimal_to_precision(price * multiplier, ROUND, 0))
+        request['volume'] = int(self.decimal_to_precision(amount * multiplier, ROUND, 0))
         request['orderSide'] = orderSide
         request['ordertype'] = self.capitalize(type)
         request['clientRequestId'] = str(self.nonce())
@@ -516,6 +530,7 @@ class btcmarkets (Exchange):
                 'currency': feeCurrencyCode,
                 'cost': feeCost,
             },
+            'takerOrMaker': None,
         }
 
     def parse_my_trades(self, trades, market=None, since=None, limit=None):
@@ -555,9 +570,11 @@ class btcmarkets (Exchange):
                 average = cost / filled
             lastTradeTimestamp = trades[numTrades - 1]['timestamp']
         id = self.safe_string(order, 'id')
+        clientOrderId = self.safe_string(order, 'clientRequestId')
         return {
             'info': order,
             'id': id,
+            'clientOrderId': clientOrderId,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'lastTradeTimestamp': lastTradeTimestamp,
@@ -671,9 +688,6 @@ class btcmarkets (Exchange):
         if 'success' in response:
             if not response['success']:
                 error = self.safe_string(response, 'errorCode')
-                message = self.id + ' ' + self.json(response)
-                if error in self.exceptions:
-                    ExceptionClass = self.exceptions[error]
-                    raise ExceptionClass(message)
-                else:
-                    raise ExchangeError(message)
+                feedback = self.id + ' ' + body
+                self.throw_exactly_matched_exception(self.exceptions, error, feedback)
+                raise ExchangeError(feedback)

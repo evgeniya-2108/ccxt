@@ -23,7 +23,7 @@ from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import InvalidNonce
 
 
-class yobit (Exchange):
+class yobit(Exchange):
 
     def describe(self):
         return self.deep_extend(super(yobit, self).describe(), {
@@ -184,11 +184,12 @@ class yobit (Exchange):
                     'api key dont have trade permission': AuthenticationError,
                     'invalid parameter': InvalidOrder,
                     'invalid order': InvalidOrder,
+                    'The given order has already been cancelled': InvalidOrder,
                     'Requests too often': DDoSProtection,
                     'not available': ExchangeNotAvailable,
                     'data unavailable': ExchangeNotAvailable,
                     'external service unavailable': ExchangeNotAvailable,
-                    'Total transaction amount': ExchangeError,  # {"success": 0, "error": "Total transaction amount is less than minimal total: 0.00010000"}
+                    'Total transaction amount': InvalidOrder,  # {"success": 0, "error": "Total transaction amount is less than minimal total: 0.00010000"}
                     'Insufficient funds': InsufficientFunds,
                     'invalid key': AuthenticationError,
                     'invalid nonce': InvalidNonce,  # {"success":0,"error":"invalid nonce(has already been used)"}'
@@ -298,13 +299,13 @@ class yobit (Exchange):
         if limit is not None:
             request['limit'] = limit  # default = 150, max = 2000
         response = await self.publicGetDepthPair(self.extend(request, params))
-        market_id_in_reponse = (market['id'] in list(response.keys()))
+        market_id_in_reponse = (market['id'] in response)
         if not market_id_in_reponse:
             raise ExchangeError(self.id + ' ' + market['symbol'] + ' order book is empty or not available')
         orderbook = response[market['id']]
         return self.parse_order_book(orderbook)
 
-    async def fetch_order_books(self, symbols=None, params={}):
+    async def fetch_order_books(self, symbols=None, limit=None, params={}):
         await self.load_markets()
         ids = None
         if symbols is None:
@@ -318,7 +319,10 @@ class yobit (Exchange):
             ids = '-'.join(ids)
         request = {
             'pair': ids,
+            # 'ignore_invalid': True,
         }
+        if limit is not None:
+            request['limit'] = limit
         response = await self.publicGetDepthPair(self.extend(request, params))
         result = {}
         ids = list(response.keys())
@@ -517,9 +521,13 @@ class yobit (Exchange):
             'filled': filled,
             'fee': None,
             # 'trades': self.parse_trades(order['trades'], market),
+            'info': response,
+            'clientOrderId': None,
+            'average': None,
+            'trades': None,
         }
         self.orders[id] = order
-        return self.extend({'info': response}, order)
+        return order
 
     async def cancel_order(self, id, symbol=None, params={}):
         await self.load_markets()
@@ -571,6 +579,7 @@ class yobit (Exchange):
         result = {
             'info': order,
             'id': id,
+            'clientOrderId': None,
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -584,6 +593,8 @@ class yobit (Exchange):
             'filled': filled,
             'status': status,
             'fee': fee,
+            'average': None,
+            'trades': None,
         }
         return result
 
@@ -607,7 +618,7 @@ class yobit (Exchange):
         response = await self.privatePostOrderInfo(self.extend(request, params))
         id = str(id)
         newOrder = self.parse_order(self.extend({'id': id}, response['return'][id]))
-        oldOrder = self.orders[id] if (id in list(self.orders.keys())) else {}
+        oldOrder = self.orders[id] if (id in self.orders) else {}
         self.orders[id] = self.extend(oldOrder, newOrder)
         return self.orders[id]
 
@@ -626,7 +637,7 @@ class yobit (Exchange):
             # - symbol mismatch(e.g. cached BTC/USDT, fetched ETH/USDT) -> skip
             cachedOrderId = cachedOrderIds[k]
             cachedOrder = self.orders[cachedOrderId]
-            if not (cachedOrderId in list(openOrdersIndexedById.keys())):
+            if not (cachedOrderId in openOrdersIndexedById):
                 # cached order is not in open orders array
                 # if we fetched orders by symbol and it doesn't match the cached order -> won't update the cached order
                 if symbol is not None and symbol != cachedOrder['symbol']:
@@ -840,14 +851,8 @@ class yobit (Exchange):
             if not success:
                 code = self.safe_string(response, 'code')
                 message = self.safe_string(response, 'error')
-                feedback = self.id + ' ' + self.json(response)
-                exact = self.exceptions['exact']
-                if code in exact:
-                    raise exact[code](feedback)
-                elif message in exact:
-                    raise exact[message](feedback)
-                broad = self.exceptions['broad']
-                broadKey = self.findBroadlyMatchedKey(broad, message)
-                if broadKey is not None:
-                    raise broad[broadKey](feedback)
+                feedback = self.id + ' ' + body
+                self.throw_exactly_matched_exception(self.exceptions['exact'], code, feedback)
+                self.throw_exactly_matched_exception(self.exceptions['exact'], message, feedback)
+                self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
                 raise ExchangeError(feedback)  # unknown message
